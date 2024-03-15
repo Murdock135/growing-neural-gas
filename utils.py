@@ -55,13 +55,15 @@ class SyntheticDataset:
         return one_hot_df
     
     def transform_to_numeric_classes(self, labels_col):
-        # labels = self.dataset[f'{labels_col}'].unique() # generate a list of labels
         encoder = LabelEncoder()
-        self.dataset[f'{labels_col}'] = encoder.fit_transform(self.dataset[f'{labels_col}'])
+        df_numeric_classes = self.dataset.copy()
+        df_numeric_classes[f'{labels_col}'] = encoder.fit_transform(df_numeric_classes[f'{labels_col}'])
+
+        return df_numeric_classes
 
     def plot_data(self):
         df = self.dataset
-        
+
         plt.figure(figsize=(8,6))
 
         for label in df['class'].unique():
