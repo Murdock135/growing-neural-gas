@@ -141,3 +141,6 @@ pylint-report.txt
 *.orc
 *.avro
 *.tsv
+*.png
+*.jpg
+*.jpeg
