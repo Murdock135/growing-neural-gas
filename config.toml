@@ -1,0 +1,9 @@
+# neural_gas_config.toml
+
+neurons_n = 100          # Number of neurons
+lifetime = 10          # Lifetime of connections
+epsilon = 0.1          # Learning rate
+lambda = 2             # Neighborhood range parameter
+max_iter = 100         # Maximum number of iterations
+
+data_file = "data.csv" # File path for the input data (assuming CSV format)
