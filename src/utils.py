@@ -5,6 +5,12 @@ from PIL import Image
 from sklearn.datasets import make_blobs
 from sklearn.preprocessing import LabelEncoder
 
+def zero(a):
+    '''Finds the idx of zeros in an array. This function is a complement of np.nonzero()'''
+    mask = a == 0
+    zero_idxs : tuple = np.nonzero(mask)
+    return zero_idxs
+
 class SyntheticDataset:
     def __init__(self, image_path):
         self.image_path = image_path

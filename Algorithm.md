@@ -28,7 +28,7 @@ Algorithm:
 
 In the original paper, the parameters $\lambda, \epsilon, \tau$ were defined by a function of time (iteration),
 $g(t)=g_i \frac{g_f}{g_i}^{\frac{t}{t_{max}}}$ where,
-    $$\lambda_i=30, \lambda_f=0.01, \epsilon_i=0.3, \epsilon_f=0.05, \tau_i=20, \tau_f=200, t_{max}=40000 $$
+    $\lambda_i=30, \lambda_f=0.01, \epsilon_i=0.3, \epsilon_f=0.05, \tau_i=20, \tau_f=200, t_{max}=40000$
 
 Example algorithm flowchart:
 
