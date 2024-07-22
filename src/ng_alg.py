@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+import matplotlib as mpl
 from tqdm import tqdm
 import os
 import imageio
@@ -23,6 +24,7 @@ class NeuralGas:
         max_iter='auto'
     ):
         self.data = data
+        self.size = data.shape[0]
         self.neurons = self.create_neurons(neurons_n)
         self.connection_matrix = np.zeros((self.neurons.shape[0], self.neurons.shape[0]))
         self.lifetime = lifetime
@@ -32,21 +34,26 @@ class NeuralGas:
         if max_iter == 'auto':
             self.max_iter = 3*self.data.shape[0] # iterate over the data 3 times
 
+        # array for storing the number of times each datapoint has been sampled
+        self.sampled_n = np.zeros(shape=self.size)
+
     def run(self):
         print("Running Neural Gas")
 
-        # repeat the algorithm 3 times
+        # repeat the algorithm over the data 3 times
         for j in tqdm(range(3)):
             # empty the bucket of previously sampled points
             prev_samples = np.empty((0, self.data.shape[1]))
 
-            for i in tqdm(range(self.max_iter)):            
+            for i in tqdm(range(self.max_iter)): 
+
                 # choose sample without replacement
                 choice = np.random.randint(0, self.data.shape[0])
-                sample = self.data[choice]
-
                 while utils.check_if_in_arr(prev_samples, sample):
                     choice = np.random.randint(0, self.data.shape[0])
+
+                sample = self.data[choice]
+                self.sampled_n[choice] += 1
 
                 self.algorithm(sample)
                 self.save_plot(iter=i,
