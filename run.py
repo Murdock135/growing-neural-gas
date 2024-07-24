@@ -25,7 +25,7 @@ if __name__ == "__main__":
     print(data[:5])
 
     # display the data
-    dataset.plot_data()
+    # dataset.plot_data()
 
     # hyperparameters
     neurons_n = config["neurons_n"]

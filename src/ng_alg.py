@@ -1,6 +1,8 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+import matplotlib.ticker as mticker
 import matplotlib as mpl
 from tqdm import tqdm
 import os
@@ -21,7 +23,8 @@ class NeuralGas:
         epsilon,
         _lambda,
         fig_save_path,
-        max_iter='auto'
+        max_local_iter='auto',
+        global_iter = 3
     ):
         self.data = data
         self.size = data.shape[0]
@@ -31,37 +34,36 @@ class NeuralGas:
         self.e = epsilon
         self._lambda = _lambda
         self.fig_save_path = fig_save_path
-        if max_iter == 'auto':
-            self.max_iter = 3*self.data.shape[0] # iterate over the data 3 times
+        if max_local_iter == 'auto':
+            self.max_local_iter = 3*self.data.shape[0] # iterate over the data 3 times
 
-        # array for storing the number of times each datapoint has been sampled
-        self.sampled_n = np.zeros(shape=self.size)
+        self.global_iter = global_iter
+
+        # Storing the number of times each datapoint has been sampled
+        self.sample_counts = np.zeros(self.size, dtype=int)
 
     def run(self):
         print("Running Neural Gas")
 
-        # repeat the algorithm over the data 3 times
-        for j in tqdm(range(3)):
-            # empty the bucket of previously sampled points
-            prev_samples = np.empty((0, self.data.shape[1]))
+        # repeat the algorithm over the data 3 times ('global iteration')
+        for j in tqdm(range(self.global_iter)):
+            # local iteration
+            for i in tqdm(range(self.max_local_iter)): 
 
-            for i in tqdm(range(self.max_iter)): 
-
-                # choose sample without replacement
+                # sample without replacement
                 choice = np.random.randint(0, self.data.shape[0])
-                while utils.check_if_in_arr(prev_samples, sample):
-                    choice = np.random.randint(0, self.data.shape[0])
-
                 sample = self.data[choice]
-                self.sampled_n[choice] += 1
+
+                while self.sample_counts[choice] > j:
+                    choice = np.random.randint(0, self.data.shape[0])
+                    sample = self.data[choice]
+
+                self.sample_counts[choice] += 1
 
                 self.algorithm(sample)
-                self.save_plot(iter=i,
-                               current_sample=sample,
-                               prev_samples=prev_samples)
-
-                # store the sample
-                prev_samples = np.vstack([prev_samples, sample])
+                self.save_plot(local_iter=i,
+                               global_iter=j,
+                               current_sample=sample)
 
         print("Run complete")
         self.create_gif()
@@ -103,24 +105,22 @@ class NeuralGas:
         else:
             print("lifetime reached. Removing connection")
             self.connection_matrix[r_index, c_index] = 0  # reset age
-
-    def plot(self, iter, current_sample, prev_samples: Array2D):
-        """This plots the data+neurons.
-        Info about **points:
-            A dict containing the coordinates of the current neuron, current sampled input, and all inputs previously sampled thus it is
-            {cur_neuron: nd.array, cur_sample: nd_array, prev_samples: nd_array}"""
+    
+    def plot(self, local_iter, global_iter, current_sample, cmap=utils.cmap):
+        """This plots the data+neurons."""
         fig, ax = plt.subplots()
 
         # plot all data and all neurons
-        ax.scatter(self.neurons[:, 0], self.neurons[:, 1], marker="o", label="neurons", c='orange')  # plot neurons
-        ax.scatter(self.data[:, 0], self.data[:, 1], s=0.5, label="data", marker='o', c='0.8')  # plot data
+        ax.scatter(self.neurons[:, 0], self.neurons[:, 1], marker=".", label="neurons", c='0.3')  # plot neurons
+        # plot data        
+        scatter = ax.scatter(self.data[:, 0], self.data[:, 1], s=0.5, marker='o', label='data', c=self.sample_counts, cmap=cmap)
 
         # plot current sample
-        ax.scatter(current_sample[0], current_sample[1], marker="x", c='k', label="neuron")
+        ax.scatter(current_sample[0], current_sample[1], s=50, marker='o', label='current sample', facecolor='green', edgecolor='k')
 
-        # plot previously sampled points
-        if prev_samples.shape[0] > 0:
-            ax.scatter(prev_samples[:, 0], prev_samples[:, 1], marker = 'p', c='cyan', label='previously picked samples')
+        # colorbar
+        cbar = fig.colorbar(scatter, ax=ax, ticks=range(self.global_iter))
+        cbar.set_label('Number of times sampled')
 
         # plot connections between neurons
         for r in range(self.connection_matrix.shape[0]):  # checking only upper triangle
@@ -136,12 +136,19 @@ class NeuralGas:
                     ax.add_line(line)
 
         ax.legend()
-        ax.set_title(f"Iteration {iter}")
+        ax.set_title(f"Global iteration: {global_iter}\nLocal iteration: {local_iter}")
         return fig
 
-    def save_plot(self, iter, current_sample, prev_samples):
-        fig = self.plot(iter, current_sample, prev_samples)
-        file_name = os.path.join(self.fig_save_path, f"frame_{iter:04d}.png")
+    def save_plot(self, local_iter, global_iter, current_sample):
+        # create figure
+        fig = self.plot(local_iter, global_iter, current_sample)
+
+        # make directory for separate global iteration
+        dir_path = os.path.join(self.fig_save_path, str(global_iter))
+        os.makedirs(dir_path, exist_ok=True)
+
+        # save figure
+        file_name = os.path.join(dir_path, f"frame_{local_iter:04d}.png")
         fig.savefig(file_name)
         plt.close(fig)
 
@@ -161,7 +168,7 @@ class NeuralGas:
     def create_gif(self):
         figures = []
 
-        for iter in range(self.max_iter):
+        for iter in range(self.max_local_iter):
             file_name = os.path.join(self.fig_save_path, f"frame_{iter:04d}.png")
             figures.append(imageio.imread(file_name))
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

@@ -1,9 +1,13 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 from PIL import Image
 from sklearn.preprocessing import LabelEncoder
 
+# colormaps
+colors = ['#ffd1df', 'salmon', 'red']
+cmap = ListedColormap(colors)
 
 def zero(a):
     """Finds the idx of zeros in an array. This function is a complement of np.nonzero()"""
