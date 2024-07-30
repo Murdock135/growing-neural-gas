@@ -41,14 +41,15 @@ class NeuralGas:
 
         # Storing the number of times each datapoint has been sampled
         self.sample_counts = np.zeros(self.size, dtype=int)
-
+        
     def run(self):
         print("Running Neural Gas")
 
         # repeat the algorithm over the data 3 times ('global iteration')
-        for j in tqdm(range(self.global_iter)):
+        for j in tqdm(range(1, self.global_iter+1)):
+            
             # local iteration
-            for i in tqdm(range(self.max_local_iter)): 
+            for i in tqdm(1, range(self.size+1)): 
 
                 # sample without replacement
                 choice = np.random.randint(0, self.data.shape[0])
@@ -61,7 +62,10 @@ class NeuralGas:
                 self.sample_counts[choice] += 1
 
                 self.algorithm(sample)
-                self.save_plot(local_iter=i,
+                
+                # create plot and save it every 50th iteration
+                if i % 50 == 0:
+                    self.save_plot(local_iter=i,
                                global_iter=j,
                                current_sample=sample)
 
