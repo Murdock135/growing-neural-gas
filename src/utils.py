@@ -16,7 +16,8 @@ def zero(a):
     return zero_idxs
 
 def check_if_in_arr(arr, element):
-    arr = arr.tolist()
+    if not isinstance(arr, list):
+        arr = arr.tolist()
     element = element.tolist()
 
     if element in arr:

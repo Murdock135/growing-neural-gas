@@ -35,13 +35,17 @@ class NeuralGas:
         self._lambda = _lambda
         self.fig_save_path = fig_save_path
         if max_local_iter == 'auto':
-            self.max_local_iter = 3*self.data.shape[0] # iterate over the data 3 times
+            self.max_local_iter = self.size # iterate over the data 3 times
 
         self.global_iter = global_iter
 
-        # Storing the number of times each datapoint has been sampled
-        self.sample_counts = np.zeros(self.size, dtype=int)
-        
+        # List for lists for storing sampled datapoints
+        self.sampled_datapoints = []
+
+        for _ in range(self.global_iter):
+            self.sampled_datapoints.append([])
+
+
     def run(self):
         print("Running Neural Gas")
 
@@ -49,22 +53,23 @@ class NeuralGas:
         for j in tqdm(range(1, self.global_iter+1)):
             
             # local iteration
-            for i in tqdm(1, range(self.size+1)): 
+            for i in tqdm(range(1, self.size+1)): 
 
                 # sample without replacement
-                choice = np.random.randint(0, self.data.shape[0])
+                choice = np.random.randint(0, self.size)
                 sample = self.data[choice]
 
-                while self.sample_counts[choice] > j:
-                    choice = np.random.randint(0, self.data.shape[0])
+                while utils.check_if_in_arr(self.sampled_datapoints[j-1], sample):
+                    choice = np.random.randint(0, self.size)
                     sample = self.data[choice]
 
-                self.sample_counts[choice] += 1
+                # register sample in array of sampled datapoints
+                self.sampled_datapoints[j-1].append(sample)
 
                 self.algorithm(sample)
                 
                 # create plot and save it every 50th iteration
-                if i % 50 == 0:
+                if i % 50 == 0 or i == self.size:
                     self.save_plot(local_iter=i,
                                global_iter=j,
                                current_sample=sample)
@@ -107,23 +112,40 @@ class NeuralGas:
             # print(f"lifetime between neurons {r_index} and {c_index}=", self.connection_matrix[r_index, c_index])
             self.connection_matrix[r_index, c_index] += 1  # changing the upper triange only
         else:
-            print("lifetime reached. Removing connection")
+            # print("lifetime reached. Removing connection")
             self.connection_matrix[r_index, c_index] = 0  # reset age
     
-    def plot(self, local_iter, global_iter, current_sample, cmap=utils.cmap):
+    def plot(self, local_iter, global_iter, current_sample, cmap=utils.cmap, neurons_color='k', data_color='blue'):
         """This plots the data+neurons."""
         fig, ax = plt.subplots()
 
         # plot all data and all neurons
-        ax.scatter(self.neurons[:, 0], self.neurons[:, 1], marker=".", label="neurons", c='0.3')  # plot neurons
-        # plot data        
-        scatter = ax.scatter(self.data[:, 0], self.data[:, 1], s=0.5, marker='o', label='data', c=self.sample_counts, cmap=cmap)
+        ax.scatter(self.neurons[:, 0], self.neurons[:, 1], marker=".", label="neurons", c=neurons_color)  # plot neurons        
+        ax.scatter(self.data[:, 0], self.data[:, 1], s=0.5, marker='o', label='data', c=data_color) # plot data
+
+        
+        # convert the lists of sampled datapoints into np arrays
+        arrays = [np.array(list) for list in self.sampled_datapoints]
+
+        # Ensure length of cmap and arrays are 'compatible'
+        assert cmap.N >= len(arrays), "The length of cmap must be at least the global iteration number"
+
+        # plot sampled datapoints and collect scatter plots
+        scatter_plots_of_sampled_datapoints = []
+        for i, array in enumerate(arrays):
+                if array.size > 0:
+                    scatter = ax.scatter(array[:, 0], array[:, 1], s=10, marker='o', facecolor=cmap(i))
+                    scatter_plots_of_sampled_datapoints.append(scatter)
 
         # plot current sample
         ax.scatter(current_sample[0], current_sample[1], s=50, marker='o', label='current sample', facecolor='green', edgecolor='k')
 
         # colorbar
-        cbar = fig.colorbar(scatter, ax=ax, ticks=range(self.global_iter))
+        cmap = cmap.with_extremes(under=data_color, over='red')
+        bounds = [0,1,2,3]
+        norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
+        sm = mpl.cm.ScalarMappable(cmap=cmap,norm=norm)
+        cbar = fig.colorbar(sm, ax=ax, extend='both', spacing='proportional')
         cbar.set_label('Number of times sampled')
 
         # plot connections between neurons
@@ -136,7 +158,7 @@ class NeuralGas:
                     x_coords = [neuron_a[0], neuron_b[0]]
                     y_coords = [neuron_a[1], neuron_b[1]]
 
-                    line = mlines.Line2D(x_coords, y_coords)
+                    line = mlines.Line2D(x_coords, y_coords, color=neurons_color)
                     ax.add_line(line)
 
         ax.legend()
