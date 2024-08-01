@@ -15,15 +15,16 @@ def zero(a):
     zero_idxs: tuple = np.nonzero(mask)
     return zero_idxs
 
-def check_if_in_arr(arr, element):
-    if not isinstance(arr, list):
-        arr = arr.tolist()
-    element = element.tolist()
+def search_datapoint(arr: list, element: list):
+        assert isinstance(arr, list), "Array to search datapoint in should be a list"
+        assert isinstance(element, list), "Datapoint should be of class: list"
 
-    if element in arr:
-        return True
-    else:
-        return False
+        if element in arr:
+            return True
+        else:
+            return False
+
+        
 
 class SyntheticDataset:
     def __init__(self, image_path):

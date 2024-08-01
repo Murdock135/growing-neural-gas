@@ -39,6 +39,10 @@ class NeuralGas:
 
         self.global_iter = global_iter
 
+        # Create subdirectories for each global iteration number
+        for i in range(1, self.global_iter+1):
+            os.makedirs(os.path.join(self.fig_save_path, str(i)))
+
         # List for lists for storing sampled datapoints
         self.sampled_datapoints = []
 
@@ -59,12 +63,12 @@ class NeuralGas:
                 choice = np.random.randint(0, self.size)
                 sample = self.data[choice]
 
-                while utils.check_if_in_arr(self.sampled_datapoints[j-1], sample):
+                while utils.search_datapoint(self.sampled_datapoints[j-1], sample.tolist()):
                     choice = np.random.randint(0, self.size)
                     sample = self.data[choice]
 
                 # register sample in array of sampled datapoints
-                self.sampled_datapoints[j-1].append(sample)
+                self.sampled_datapoints[j-1].append(sample.tolist())
 
                 self.algorithm(sample)
                 
@@ -74,8 +78,9 @@ class NeuralGas:
                                global_iter=j,
                                current_sample=sample)
 
-        print("Run complete")
-        self.create_gif()
+            # Create GIF
+            print("Run complete")
+            self.create_gif(j)
 
     def algorithm(self, sample):
         # calculate distances
@@ -115,7 +120,7 @@ class NeuralGas:
             # print("lifetime reached. Removing connection")
             self.connection_matrix[r_index, c_index] = 0  # reset age
     
-    def plot(self, local_iter, global_iter, current_sample, cmap=utils.cmap, neurons_color='k', data_color='blue'):
+    def plot(self, local_iter, global_iter, current_sample, cmap=utils.cmap, neurons_color='k', data_color='#4575F3'):
         """This plots the data+neurons."""
         fig, ax = plt.subplots()
 
@@ -169,12 +174,8 @@ class NeuralGas:
         # create figure
         fig = self.plot(local_iter, global_iter, current_sample)
 
-        # make directory for separate global iteration
-        dir_path = os.path.join(self.fig_save_path, str(global_iter))
-        os.makedirs(dir_path, exist_ok=True)
-
         # save figure
-        file_name = os.path.join(dir_path, f"frame_{local_iter:04d}.png")
+        file_name = os.path.join(self.fig_save_path, str(global_iter), f"frame_{local_iter:04d}.png")
         fig.savefig(file_name)
         plt.close(fig)
 
@@ -191,15 +192,14 @@ class NeuralGas:
         neurons = np.column_stack((x_coords, y_coords))
         return neurons
 
-    def create_gif(self):
+    def create_gif(self, global_iter):
         figures = []
-
-        for iter in range(self.max_local_iter):
-            file_name = os.path.join(self.fig_save_path, f"frame_{iter:04d}.png")
-            figures.append(imageio.imread(file_name))
+        results_for_global_iter = os.path.join(self.fig_save_path, str(global_iter))
+        filenames = os.listdir(results_for_global_iter)
+        # TODO: adjust this so that files are found automatically so that you don't have to manually input the file name
+        for f in filenames:
+            filepath = os.path.join(self.fig_save_path, str(global_iter), f)
+            figures.append(imageio.imread(filepath))
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        gif_path = os.path.join(self.fig_save_path, f"neural_gas_animation_{timestamp}.gif")
+        gif_path = os.path.join(self.fig_save_path, str(global_iter), f"neural_gas_animation_{timestamp}.gif")
         imageio.mimsave(gif_path, figures)
-    
-    def reset(self):
-        pass
