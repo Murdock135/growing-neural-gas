@@ -1,4 +1,4 @@
-from src.ng_alg import NeuralGas
+from src.hebbian_algorithms import AdaptiveVectorQuantizer
 from src.utils import SyntheticDataset
 import pandas as pd
 import toml
@@ -44,7 +44,7 @@ if __name__ == "__main__":
         os.makedirs(save_path)
 
     # run NeuralGas
-    algorithm_instance = NeuralGas(
+    algorithm_instance = AdaptiveVectorQuantizer(
         data=data,
         neurons_n=neurons_n,
         lifetime=T_i,

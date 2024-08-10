@@ -24,7 +24,34 @@ def search_datapoint(arr: list, element: list):
         else:
             return False
 
-        
+def add_padding(matrix: np.ndarray, padding_size: int = 1) -> np.ndarray:
+    """
+    Adds padding to a square matrix by adding rows and columns filled with zeros.
+    
+    Parameters:
+    matrix (np.ndarray): The original square matrix.
+    padding_size (int): The number of rows and columns to add. Default is 1.
+    
+    Returns:
+    np.ndarray: The resulting matrix after adding the padding.
+    """
+    
+    # Check if the input matrix is square
+    if matrix.shape[0] != matrix.shape[1]:
+        raise ValueError("The input matrix must be square.")
+    
+    # Number of columns (elements in a row) in the original matrix
+    row_n = matrix.shape[1]
+    # Number of rows (elements in a column) in the original matrix
+    col_n = matrix.shape[0]
+    
+    # Add new rows
+    result_matrix = np.vstack((matrix, np.zeros(shape=(padding_size, row_n))))
+    
+    # Add new columns
+    result_matrix = np.hstack((result_matrix, np.zeros(shape=(col_n + padding_size, padding_size))))
+    
+    return result_matrix
 
 class SyntheticDataset:
     def __init__(self, image_path):
