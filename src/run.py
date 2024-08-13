@@ -22,16 +22,6 @@ from utils import (
 )
 
 def main() -> None:
-    """
-    Main function to run the Adaptive Vector Quantization algorithm.
-
-    This function orchestrates the entire process:
-    1. Parse command-line arguments
-    2. Load configuration
-    3. Load data
-    4. Create save directory
-    5. Run the quantizer
-    """
     # Parse command-line arguments
     args = parse_arguments()
 

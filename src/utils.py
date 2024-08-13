@@ -11,9 +11,6 @@ import os
 colors = ["#ffd1df", "salmon", "red"]
 cmap = ListedColormap(colors)
 
-def nested_list_to_array_list(nestedlist: list[list[int]]):
-    return [np.array(sublist) for sublist in nestedlist]
-
 def zero(a):
     """Finds the idx of zeros in an array. This function is a complement of np.nonzero()"""
     mask = a == 0
@@ -123,16 +120,16 @@ def run_quantizer(
     common_params = {
         "data": data,
         "fig_save_path": output_path,
-        "neurons_n": config["neurons_n"],
-        "max_iterations": config["max_iterations"],
-        "global_iterations": config["global_iterations"],
-        "plot_interval": config["plot_interval"],
+        "max_iterations": config.get('max_iterations', 'auto'),
+        "epochs": config.get('epochs', 3),
+        "plot_interval": config.get('plot_interval', 100),
     }
     # FIXME:
     if algorithm == "ng":
         # Create and run Neural Gas
         quantizer = NeuralGas(
             **common_params,
+            neurons_n=config.get('neurons_n', 200),
             epsilon=config["epsilon"],
             lambda_param=config["lambda"],
             lifetime=config["lifetime"],
@@ -141,6 +138,7 @@ def run_quantizer(
         # Create and run Growing Neural Gas
         quantizer = GrowingNeuralGas(
             **common_params,
+            neurons_n=config.get('neurons_n', 2),
             eps_b=config["eps_b"],
             eps_n=config["eps_n"],
             lifetime=config["lifetime"],
