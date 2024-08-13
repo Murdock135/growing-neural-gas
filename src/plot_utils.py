@@ -82,3 +82,18 @@ class SyntheticDataset:
         plt.xlabel("X")
         plt.ylabel("Y")
         plt.show()
+
+def plot_avq(self, data, neurons, current_sample=None, sample_counts: np.ndarray = None, colors: dict = None):
+    default_colors = {
+        "data": 0.8,
+        "neuron": "red",
+        "connection": "k",
+        "current sample face": "green",
+        "current sample edge": "crimson",
+    }
+
+    colors: dict = colors if colors else default_colors
+
+def save_fig(fig):
+    pass
+
