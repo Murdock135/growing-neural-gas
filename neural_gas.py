@@ -42,5 +42,5 @@ class NeuralGas(AdaptiveVectorQuantizer):
                 * (x - self.neurons[neuron_idx])
             )
 
-        self.connect_neurons(ranking[0], ranking[1])
+        self.increase_age(ranking[0], ranking[1])
         self.remove_old_connections()
