@@ -2,6 +2,7 @@ import numpy as np
 import utils.plot_utils as pu
 from abc import ABC, abstractmethod
 from typing import Any
+from tqdm import tqdm
 
 
 class AdaptiveVectorQuantizer(ABC):
@@ -32,21 +33,21 @@ class AdaptiveVectorQuantizer(ABC):
 
     def run(self):
         shuffled_data: np.ndarray = self.shuffle_data(self.data)
-        self.neurons: np.ndarray = self.create_neurons(self.neurons_n)
+        self.neurons: np.ndarray = self.create_neurons(self.neurons_n, dist='uniform')
         self.connection_matrix: np.ndarray = np.zeros((self.neurons_n, self.neurons_n))
         if self.max_iter == "auto":
             assert (
                 self.max_iter == self.data.shape[0]
             ), "Max iterations is set to 'auto'. Data size need to equal number of iterations (max_iter)"
 
-        for epoch in range(self.epochs):
-            for i in range(self.max_iter):
+        for epoch in tqdm(range(self.epochs), desc='Epoch'):
+            for i in tqdm(range(self.max_iter)):
                 x = shuffled_data[i]
                 data_idx = np.nonzero(self.data == x)[0]
                 self.sample_counts[data_idx] += 1
                 self.update(i, x)
 
-                if i % self.plot_interval == 0 or i == self.max_iter:
+                if i % self.plot_interval == 0 or i == self.max_iter - 1:
                     pu.plot_NG(
                         data=self.data,
                         neurons=self.neurons,
@@ -54,6 +55,7 @@ class AdaptiveVectorQuantizer(ABC):
                         sample_counts=self.sample_counts,
                         iter=i,
                         epoch=epoch,
+                        connection_matrix=self.connection_matrix
                     )
                     pu.save_fig(self.results_dir, epoch, i)
 

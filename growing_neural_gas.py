@@ -52,15 +52,17 @@ class GrowingNeuralGas(AdaptiveVectorQuantizer):
         self.errors[s1_idx] += distances[s1_idx] ** 2
         self.neurons[s1_idx] += self.eps_b * (x - self.neurons[s1_idx])
 
-        if self.connection_matrix[s1_idx, s2_idx] > 0:
-            self.connection_matrix[s1_idx, s2_idx] = 0
-        else:
-            self.connection_matrix[s1_idx, s2_idx] = 1
+        self.connection_matrix[s1_idx, s2_idx] = self.connection_matrix[s2_idx, s1_idx] = 1
 
         self.remove_old_connections()
+        self.delete_lonely_neurons()
 
         if i % self.lambda_param == 0:
             self.insert_new_neuron()
+
+        # Decrease all errors
+        self.errors *= self.decay
+
     
     def delete_lonely_neurons(self):
         lonely_neuron_indices = np.nonzero(~np.any(self.connection_matrix, axis=1))[0]
@@ -90,7 +92,3 @@ class GrowingNeuralGas(AdaptiveVectorQuantizer):
             self.errors[q_idx] *= self.alpha
             self.errors[f_idx] *= self.alpha
             self.errors = np.append(self.errors, self.errors[q_idx])
-
-            # Decrease all errors
-            self.errors *= self.decay
-

@@ -1,11 +1,12 @@
 import pandas as pd
 from PIL import Image
-from sklearn.preprocessing import LabelEncoder, MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime
-from torch import norm
 from tqdm import tqdm
+import os
+
 
 class SyntheticDataset:
     def __init__(self, image_path, color_map, tolerance=10):
@@ -14,14 +15,14 @@ class SyntheticDataset:
         self.tolerance = tolerance
 
     def _is_color_close(self, color1, color2):
-        return all(abs(c1-c2)<=self.tolerance for c1, c2 in zip(color1,color2))
+        return all(abs(c1 - c2) <= self.tolerance for c1, c2 in zip(color1, color2))
 
     def _find_closest_class(self, pixel_color):
         for known_color, label in self.color_map.items():
             if self._is_color_close(known_color, pixel_color):
                 return label
         return None
-    
+
     def extract_data(self) -> pd.DataFrame:
         # Open the image
         img = Image.open(self.image_path)
@@ -38,12 +39,14 @@ class SyntheticDataset:
         # Loop through each pixel in the image
         for y in tqdm(range(height), desc="Extracting data"):
             for x in range(width):
-                pixel_color = img.getpixel((x, y))[:3] # Get RGB value, ignoring alpha channel
+                pixel_color = img.getpixel((x, y))[
+                    :3
+                ]  # Get RGB value, ignoring alpha channel
                 label = self._find_closest_class(pixel_color)
                 if label:
-                    data.append(((x,y), pixel_color, label))
-        
-        df = pd.DataFrame(data, columns=['coordinates', 'pixel value', 'class'])
+                    data.append(((x, y), pixel_color, label))
+
+        df = pd.DataFrame(data, columns=["coordinates", "pixel value", "class"])
         return df
 
     def normalize_coordinates(self, df) -> np.ndarray:
@@ -52,25 +55,30 @@ class SyntheticDataset:
         scaler = MinMaxScaler()
         normalized_coordinates = scaler.fit_transform(coordinates)
         return normalized_coordinates
-        
+
     def get_coordinates_as_numpy(self, df):
-        return np.vstack(df['coordinates'].values)
-    
+        return np.vstack(df["coordinates"].values)
+
     def plot_data(self, df, normalized=False):
         """Plots the data points with color coding based on class."""
         plt.figure(figsize=(8, 8))
 
-        for class_label in df['class'].unique():
-            class_data = df[df['class'] == class_label]
-            coordinates = np.array(class_data['coordinates'].tolist()) if not normalized else np.array(class_data['normalized_coordinates'].tolist())
+        for class_label in df["class"].unique():
+            class_data = df[df["class"] == class_label]
+            coordinates = (
+                np.array(class_data["coordinates"].tolist())
+                if not normalized
+                else np.array(class_data["normalized_coordinates"].tolist())
+            )
             plt.scatter(coordinates[:, 0], coordinates[:, 1], label=class_label, s=10)
 
-        plt.title('Extracted dataset')
-        plt.xlabel('X Coordinate')
-        plt.ylabel('Y Coordinate')
+        plt.title("Extracted dataset")
+        plt.xlabel("X Coordinate")
+        plt.ylabel("Y Coordinate")
         plt.legend()
         plt.show()
-        
+
+
 # OLD IMPLEMENTATION
 # class SyntheticDataset:
 #     def __init__(self, image_path, color_map, tolerance=10):
@@ -156,39 +164,28 @@ class SyntheticDataset:
 #         plt.show()
 
 
-def load_data(data_source: str) -> np.ndarray:
-    """
-    Load data from a file, generate random data, or use image-based data generation.
-
-    Args:
-        data_source (str): Path to data file, image file, or 'random' for random data.
-
-    Returns:
-        np.ndarray: 2D array of data points.
-    """
-    if data_source.lower() == "random":
+def load_data(data_path: str, normalize=False) -> np.ndarray:
+    if data_path.lower() == "random":
         # Generate random data
         np.random.seed(0)
         return np.random.rand(1000, 2)
-    elif data_source.lower().endswith((".png", ".jpg", ".jpeg")):
+    elif data_path.lower().endswith((".png", ".jpg", ".jpeg")):
         # Use SyntheticDataset for image-based data generation
-        synthetic_data = SyntheticDataset(data_source)
-        synthetic_data.generate_data_from_img()
-        df = synthetic_data.get_dataset()
+        from utils.data_colors import COLOR_MAP
 
-        # Extract coordinates from the dataset
-        coordinates = np.array(df["coordinate"].tolist())
+        extractor = SyntheticDataset(data_path, COLOR_MAP)
+        dataset: pd.DataFrame = extractor.extract_data()
 
-        # Normalize the coordinates to [0, 1] range
-        coordinates = (coordinates - coordinates.min(axis=0)) / (
-            coordinates.max(axis=0) - coordinates.min(axis=0)
-        )
-
-        return coordinates
+        if normalize:
+            normalized_coordinates: np.ndarray = extractor.normalize_coordinates(
+                dataset
+            )
+            return normalized_coordinates
     else:
         # Load data from file
-        return np.loadtxt(data_source)
-    
+        return np.loadtxt(data_path)
+
+
 def create_save_path(base_path: str, algorithm: str) -> str:
     """
     Create a timestamped save path for the results.

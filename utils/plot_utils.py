@@ -1,3 +1,4 @@
+from matplotlib.lines import lineStyles
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ import os
 global_colors = ["#ffd1df", "salmon", "red"]
 cmap = ListedColormap(global_colors)
 
+
 def plot_NG(
     data,
     neurons,
@@ -15,24 +17,28 @@ def plot_NG(
     epoch,
     current_sample=None,
     sample_counts: np.ndarray = None,
-    colors: dict = None,
+    connection_matrix: np.ndarray = None,
+    color_dict: dict = None,
 ):
     colors: dict = (
-        colors
-        if colors
+        color_dict
+        if color_dict
         else {
-            "data": 0.8,
+            "data": "0.8",
             "neurons": "red",
             "current_sample_facecolor": "green",
             "current_sample_edgecolor": "k",
             "connection": "k",
-            "cmap_colors": global_colors
+            "cmap_colors": global_colors,
         }
     )
 
     plt.clf()
     cmap_color_vals = sample_counts / max(sample_counts)
-    cmap = ListedColormap(colors["cmap_colors"].insert(0, colors['data']))
+    cmap_colors = colors["cmap_colors"].copy()
+    cmap_colors.insert(0, colors["data"])
+    cmap = ListedColormap(cmap_colors)
+
     plt.scatter(
         data[:, 0], data[:, 1], c=cmap_color_vals, cmap=cmap, marker="o", label="Data"
     )
@@ -45,14 +51,24 @@ def plot_NG(
             current_sample[1],
             facecolor=colors["current_sample_facecolor"],
             edgecolors=colors["current_sample_edgecolor"],
-            marker='o',
+            marker="o",
             s=100,
-            label='Current sample'
+            label="Current sample",
         )
-    plt.title(f'Epoch {epoch}\nIteration {iter}')
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.colorbar(label='Number of times sampled')
+
+    if connection_matrix is not None:
+        n1s, n2s = np.nonzero(np.triu(connection_matrix, k=1))
+        for n1, n2 in zip(n1s, n2s):
+            neuron_1 = neurons[n1]
+            neuron_2 = neurons[n2]
+            x_coords = [neuron_1[0], neuron_2[0]]
+            y_coords = [neuron_1[1], neuron_2[1]]
+            plt.plot(x_coords, y_coords, color=colors["connection"], linestyle="-")
+
+    plt.title(f"Epoch {epoch}\nIteration {iter}")
+    plt.xlabel("X")
+    plt.ylabel("Y")
+    plt.colorbar(label="Number of times sampled", cmap=cmap)
     plt.legend()
     plt.draw()
 
