@@ -14,9 +14,9 @@ lambda_param = 100
 alpha = 0.5
 decay = 0.99
 
-[plotting_colors]
-data_color = "0.8"
-neuron_color = "red"
-current_sample_facecolor = "green"
-current_sample_edgecolor = "k"
-connection = "k"
+# [plotting_colors]
+# data_color = "0.8"
+# neuron_color = "red"
+# current_sample_facecolor = "green"
+# current_sample_edgecolor = "k"
+# connection = "k"
