@@ -3,6 +3,7 @@ import matplotlib
 import matplotlib.axes
 from matplotlib.colors import ListedColormap, Normalize, BoundaryNorm
 import numpy as np
+from sklearn.random_projection import sample_without_replacement
 import utils.plot_utils as pu
 from abc import ABC, abstractmethod
 from typing import Dict
@@ -22,70 +23,45 @@ class AdaptiveVectorQuantizer(ABC):
         epochs: int = 3,
         plot_interval: int = 100,
         sampling_without_replacement: bool = True,
-        plot = True,
         plotting_colors: dict = None
     ) -> None:
         self.data: np.ndarray = data
         self.neurons_n = neurons_n
         self.results_dir = results_dir
         self.lifetime = lifetime
-        self.max_iter = max_iter
+        self.max_iter = data.shape[0] if max_iter == 'auto' else max_iter
+        print(self.max_iter)
         self.epochs = epochs
         self.plot_interval = plot_interval
         self.sampling_without_replacement = sampling_without_replacement
-        self.check_max_iter()
-        self.sample_counts = np.zeros(self.data.shape[0])
-        if plot:
-            self.color_dict = plotting_colors
-            self.fig, self.ax = plt.subplots()
-            self.colorbar = None
-            self.cmap, self.color_dict = self.set_plotting_colors(self.color_dict)
-
-
-class AdaptiveVectorQuantizer(ABC):
-    def __init__(
-        self,
-        data: np.ndarray,
-        neurons_n: int,
-        results_dir: str,
-        lifetime: int = "auto",
-        max_iter: int = "auto",
-        epochs: int = 3,
-        plot_interval: int = 100,
-        sampling_without_replacement: bool = True,
-        plotting_colors: dict = None
-    ) -> None:
-        self.data: np.ndarray = data
-        self.neurons_n = neurons_n
-        self.results_dir = results_dir
-        self.lifetime = lifetime
-        self.max_iter = max_iter
-        self.epochs = epochs
-        self.plot_interval = plot_interval
-        self.sampling_without_replacement = sampling_without_replacement
-        self.check_max_iter()
+        self._correct_sampling_logic()
         self.sample_counts = np.zeros(self.data.shape[0])
         self.color_dict = plotting_colors if plotting_colors else NG_colors
-        print(self.color_dict)
         self.fig, self.ax = plt.subplots()
         self.cmap, self.color_dict = self.set_plotting_colors(self.color_dict)
         cbar_bounds = np.arange(self.epochs + 2)
         self.colorbar = self.set_colorbar(self.ax, self.cmap, cbar_bounds)
 
     def run(self):
-        shuffled_data: np.ndarray = self.shuffle_data(self.data)
         self.neurons: np.ndarray = self.create_neurons(self.neurons_n, dist='uniform')
         self.connection_matrix: np.ndarray = np.zeros((self.neurons_n, self.neurons_n))
-        if self.max_iter == "auto":
-            assert (
-                self.max_iter == self.data.shape[0]
-            ), "Max iterations is set to 'auto'. Data size need to equal number of iterations (max_iter)"
 
         for epoch in tqdm(range(self.epochs), desc='Epoch'):
+            sampled_indices = np.zeros(self.max_iter)
+            print(self.sample_counts)
+
             for i in tqdm(range(self.max_iter)):
-                x = shuffled_data[i]
-                data_idx = np.nonzero(self.data == x)[0]
-                self.sample_counts[data_idx] += 1
+                if self.sampling_without_replacement:
+                    while True:
+                        choice = np.random.choice(self.data.shape[0])
+                        if sampled_indices[choice] == 0:
+                            break
+                else:
+                    choice = np.random.choice(self.data.shape[0])
+
+                x = self.data[choice]
+                sampled_indices[choice] += 1
+                self.sample_counts[choice] += 1
                 self.update(i, x)
 
                 if i % self.plot_interval == 0 or i == self.max_iter - 1:
@@ -104,13 +80,17 @@ class AdaptiveVectorQuantizer(ABC):
     def update(self, i: int, x: np.ndarray):
         pass
 
-    def check_max_iter(self):
+    def _correct_sampling_logic(self):
         if (
             self.sampling_without_replacement == True
             and self.max_iter > self.data.shape[0]
         ):
             self.sampling_without_replacement = False
             print("Max iter > Data size. Will sample with replacement")
+        if self.max_iter == "auto":
+            assert (
+                self.max_iter == self.data.shape[0]
+            ), "Max iterations is set to 'auto'. Data size need to equal number of iterations (max_iter)"
 
     def shuffle_data(self, data: np.ndarray):
         rng = np.random.default_rng()
@@ -119,6 +99,7 @@ class AdaptiveVectorQuantizer(ABC):
             size=self.max_iter,
             replace=not self.sampling_without_replacement,
         )
+        print(not sample_without_replacement)
         return data[random_sequence]
 
     def create_neurons(self, neurons_n, dist: str) -> np.ndarray:
@@ -184,6 +165,8 @@ class AdaptiveVectorQuantizer(ABC):
         colors = self.color_dict
         cmap = self.cmap
         size = 50
+
+        
         sc = plt.scatter(
             data[:, 0],
             data[:, 1],
