@@ -1,5 +1,6 @@
 import numpy as np
 from adaptive_vector_quantizer import AdaptiveVectorQuantizer
+from utils.plot_utils import NG_colors
 
 
 class NeuralGas(AdaptiveVectorQuantizer):
@@ -7,26 +8,14 @@ class NeuralGas(AdaptiveVectorQuantizer):
         self,
         data: np.ndarray,
         results_dir: str,
-        lifetime="auto",
-        max_iter: int = "auto",
-        epochs: int = 3,
-        plot_interval: int = 100,
-        sampling_without_replacement: bool = True,
         neurons_n=200,
         epsilon="auto",
         lambda_param="auto",
-        **plotting_colors,
+        plotting_colors: dict = NG_colors,
+        **kwargs
     ) -> None:
         super().__init__(
-            data,
-            neurons_n,
-            results_dir,
-            lifetime,
-            max_iter,
-            epochs,
-            plot_interval,
-            sampling_without_replacement,
-            **plotting_colors,
+            data, neurons_n, results_dir, plotting_colors=plotting_colors, **kwargs
         )
         self.epsilon = epsilon
         self.lambda_param = lambda_param

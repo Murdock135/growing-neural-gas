@@ -1,10 +1,7 @@
-from matplotlib.lines import lineStyles
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap, ListedColormap, BoundaryNorm
 import imageio
 import os
+from datetime import datetime
 
 sample_count_colors = ["#ffd1df", "salmon", "red"]
 NG_colors = {
@@ -31,10 +28,9 @@ def _create_gif(figs_path, current_epoch) -> None:
     for f in filenames:
         filepath = os.path.join(figs_path, str(current_epoch), f)
         figures.append(imageio.imread(filepath))
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
     gif_path = os.path.join(
-        figs_path,
-        str(current_epoch),
-        f"{self.__class__.__name__}_animation_{timestamp}.gif",
+        results_for_epoch,
+        f"epoch_{current_epoch}.gif",
     )
     imageio.mimsave(gif_path, figures, duration=0.1)

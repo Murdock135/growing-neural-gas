@@ -1,5 +1,6 @@
 import numpy as np
 from adaptive_vector_quantizer import AdaptiveVectorQuantizer
+from utils.plot_utils import NG_colors
 
 
 class GrowingNeuralGas(AdaptiveVectorQuantizer):
@@ -7,31 +8,25 @@ class GrowingNeuralGas(AdaptiveVectorQuantizer):
         self,
         data: np.ndarray,
         results_dir: str,
-        lifetime="auto",
-        max_iter: int = "auto",
-        epochs: int = 3,
-        plot_interval: int = 100,
-        sampling_without_replacement: bool = True,
+        plotting_colors: dict = NG_colors,
         neurons_n=2,
-        max_neurons = 1000,
-        eps_b="auto",
-        eps_n="auto",
-        lambda_param="auto",
-        alpha='auto',
-        decay='auto',
-        **plotting_colors,
+        max_neurons=1000,
+        eps_b=0.2,
+        eps_n=0.006,
+        lambda_param=100,
+        alpha=0.5,
+        decay=0.995,
+        **kwargs
     ) -> None:
         super().__init__(
             data=data,
             neurons_n=neurons_n,
             results_dir=results_dir,
-            lifetime=lifetime,
-            max_iter=max_iter,
-            epochs=epochs,
-            plot_interval=plot_interval,
-            sampling_without_replacement=sampling_without_replacement,
-            **plotting_colors,
+            plotting_colors=plotting_colors,
+            **kwargs
         )
+
+        # GNG specific parameters
         self.max_neurons = max_neurons
         self.eps_b = eps_b
         self.eps_n = eps_n
@@ -43,7 +38,7 @@ class GrowingNeuralGas(AdaptiveVectorQuantizer):
     def update(self, i: int, x: np.ndarray):
         distances = np.linalg.norm(self.neurons - x, axis=1)
         s1_idx, s2_idx = np.argsort(distances)[:2]
-    
+
         neigbors_indices = np.nonzero(self.connection_matrix[s1_idx])[0]
         for n in neigbors_indices:
             self.increase_age(s1_idx, n)
@@ -52,7 +47,9 @@ class GrowingNeuralGas(AdaptiveVectorQuantizer):
         self.errors[s1_idx] += distances[s1_idx] ** 2
         self.neurons[s1_idx] += self.eps_b * (x - self.neurons[s1_idx])
 
-        self.connection_matrix[s1_idx, s2_idx] = self.connection_matrix[s2_idx, s1_idx] = 1
+        self.connection_matrix[s1_idx, s2_idx] = self.connection_matrix[
+            s2_idx, s1_idx
+        ] = 1
 
         self.remove_old_connections()
         self.delete_lonely_neurons()
@@ -63,14 +60,17 @@ class GrowingNeuralGas(AdaptiveVectorQuantizer):
         # Decrease all errors
         self.errors *= self.decay
 
-    
     def delete_lonely_neurons(self):
         lonely_neuron_indices = np.nonzero(~np.any(self.connection_matrix, axis=1))[0]
 
         if len(lonely_neuron_indices) > 0:
             self.neurons = np.delete(self.neurons, lonely_neuron_indices, axis=0)
-            self.connection_matrix = np.delete(self.connection_matrix, lonely_neuron_indices, axis=0)
-            self.connection_matrix = np.delete(self.connection_matrix, lonely_neuron_indices, axis=1)
+            self.connection_matrix = np.delete(
+                self.connection_matrix, lonely_neuron_indices, axis=0
+            )
+            self.connection_matrix = np.delete(
+                self.connection_matrix, lonely_neuron_indices, axis=1
+            )
             self.errors = np.delete(self.errors, lonely_neuron_indices)
 
     def insert_new_neuron(self):
@@ -86,7 +86,9 @@ class GrowingNeuralGas(AdaptiveVectorQuantizer):
             self.connection_matrix = np.pad(self.connection_matrix, ((0, 1), (0, 1)))
             self.connection_matrix[q_idx, -1] = self.connection_matrix[-1, q_idx] = 1
             self.connection_matrix[f_idx, -1] = self.connection_matrix[-1, f_idx] = 1
-            self.connection_matrix[q_idx, f_idx] = self.connection_matrix[f_idx, q_idx] = 0
+            self.connection_matrix[q_idx, f_idx] = self.connection_matrix[
+                f_idx, q_idx
+            ] = 0
 
             # Adjust errors
             self.errors[q_idx] *= self.alpha

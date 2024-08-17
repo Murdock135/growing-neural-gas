@@ -1,15 +1,12 @@
-from ast import Dict, Tuple
-import matplotlib
-import matplotlib.axes
-from matplotlib.colors import ListedColormap, Normalize, BoundaryNorm
-import numpy as np
-from sklearn.random_projection import sample_without_replacement
-import utils.plot_utils as pu
-from abc import ABC, abstractmethod
-from typing import Dict
-from tqdm import tqdm
-from utils.plot_utils import sample_count_colors, NG_colors
+from pickle import TUPLE
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap, BoundaryNorm
+import numpy as np
+from abc import ABC, abstractmethod
+from typing import Tuple, Dict, List
+from sympy import true
+from tqdm import tqdm
+import utils.plot_utils as pu
 
 
 class AdaptiveVectorQuantizer(ABC):
@@ -18,63 +15,72 @@ class AdaptiveVectorQuantizer(ABC):
         data: np.ndarray,
         neurons_n: int,
         results_dir: str,
-        lifetime: int = "auto",
-        max_iter: int = "auto",
-        epochs: int = 3,
-        plot_interval: int = 100,
-        sampling_without_replacement: bool = True,
-        plotting_colors: dict = None
+        plotting_colors: Dict = pu.NG_colors,
+        **kwargs,
     ) -> None:
         self.data: np.ndarray = data
         self.neurons_n = neurons_n
         self.results_dir = results_dir
-        self.lifetime = lifetime
-        self.max_iter = data.shape[0] if max_iter == 'auto' else max_iter
-        print(self.max_iter)
-        self.epochs = epochs
-        self.plot_interval = plot_interval
-        self.sampling_without_replacement = sampling_without_replacement
+
+        # kwargs
+        self.lifetime = kwargs.get("lifetime", 10)
+        self.max_iter = kwargs.get("max_iter", self.data.shape[0])
+        self.epochs = kwargs.get("epochs", 3)
+        self.plot_interval = kwargs.get("plot_interval", 100)
+        self.sampling_without_replacement = kwargs.get(
+            "sampling_without_replacement", True
+        )
         self._correct_sampling_logic()
+
+        # Additional initializations
         self.sample_counts = np.zeros(self.data.shape[0])
-        self.color_dict = plotting_colors if plotting_colors else NG_colors
+        self.color_dict = plotting_colors
         self.fig, self.ax = plt.subplots()
-        self.cmap, self.color_dict = self.set_plotting_colors(self.color_dict)
-        cbar_bounds = np.arange(self.epochs + 2)
-        self.colorbar = self.set_colorbar(self.ax, self.cmap, cbar_bounds)
+        self.color_dict = self.set_plotting_colors(**self.color_dict)
+        self.colorbar = None
 
     def run(self):
-        self.neurons: np.ndarray = self.create_neurons(self.neurons_n, dist='uniform')
+        self.neurons: np.ndarray = self.create_neurons(self.neurons_n, dist="uniform")
         self.connection_matrix: np.ndarray = np.zeros((self.neurons_n, self.neurons_n))
 
-        for epoch in tqdm(range(self.epochs), desc='Epoch'):
-            sampled_indices = np.zeros(self.max_iter)
-            print(self.sample_counts)
+        # create colorbar
+        cmap = ListedColormap([self.color_dict["data"], "#ffd1df", "salmon", "red"])
+        norm = BoundaryNorm(boundaries=[0, 1, 2, 3, 4], ncolors=cmap.N)
+        if self.colorbar is None:
+            self.colorbar = self.create_cbar(cmap, norm)
+
+        for epoch in tqdm(range(self.epochs), desc="Epoch"):
+            # create random sequence
+            random_seq = self.get_random_sequence(self.data)
+
+            # create cmap
+            if self.sampling_without_replacement == True:
+                new_cmap_colors = [cmap(epoch), cmap(epoch + 1)]
+                new_cmap = ListedColormap(new_cmap_colors)
 
             for i in tqdm(range(self.max_iter)):
-                if self.sampling_without_replacement:
-                    while True:
-                        choice = np.random.choice(self.data.shape[0])
-                        if sampled_indices[choice] == 0:
-                            break
-                else:
-                    choice = np.random.choice(self.data.shape[0])
-
+                choice = random_seq[i]
                 x = self.data[choice]
-                sampled_indices[choice] += 1
                 self.sample_counts[choice] += 1
                 self.update(i, x)
 
                 if i % self.plot_interval == 0 or i == self.max_iter - 1:
+                    self.ax.clear()
                     self.plot_NG(
                         data=self.data,
                         neurons=self.neurons,
-                        current_sample=x,
                         sample_counts=self.sample_counts,
-                        iter=i,
+                        current_sample=x,
+                        connection_matrix=self.connection_matrix,
                         epoch=epoch,
-                        connection_matrix=self.connection_matrix
+                        iter=i,
+                        cmap=new_cmap,
                     )
+
                     pu.save_fig(self.results_dir, epoch, i)
+
+            # Create GIF
+            pu._create_gif(self.results_dir, epoch)
 
     @abstractmethod
     def update(self, i: int, x: np.ndarray):
@@ -92,15 +98,14 @@ class AdaptiveVectorQuantizer(ABC):
                 self.max_iter == self.data.shape[0]
             ), "Max iterations is set to 'auto'. Data size need to equal number of iterations (max_iter)"
 
-    def shuffle_data(self, data: np.ndarray):
+    def get_random_sequence(self, data: np.ndarray):
         rng = np.random.default_rng()
         random_sequence = rng.choice(
             a=data.shape[0],
             size=self.max_iter,
             replace=not self.sampling_without_replacement,
         )
-        print(not sample_without_replacement)
-        return data[random_sequence]
+        return random_sequence
 
     def create_neurons(self, neurons_n, dist: str) -> np.ndarray:
         dim = self.data.shape[1]
@@ -127,66 +132,49 @@ class AdaptiveVectorQuantizer(ABC):
         """Remove connections older than the specified lifetime and delete lonely neurons."""
         old_connections = self.connection_matrix > self.lifetime
         self.connection_matrix[old_connections] = 0
-    
-    def set_plotting_colors(self, color_dict=None) -> tuple[ListedColormap, Dict, ]:
-        colors = color_dict if color_dict is not None else NG_colors
-        cmap_colors_copy = colors['sample_count_colors'].copy()
-        cmap_colors_copy.insert(0, colors['data'])
-        cmap = ListedColormap(cmap_colors_copy)
 
-        assert (
-            cmap.N == self.epochs + 1
-        ), f"Number of colors in the color map ({cmap.N}) must be one more than number of epochs ({self.epochs})"
+    def set_plotting_colors(self, **colors_kwargs) -> Dict:
+        return {
+            "data": colors_kwargs.get("data", "0.8"),
+            "neurons": colors_kwargs.get("neurons", "k"),
+            "current_sample_facecolor": colors_kwargs.get(
+                "current_sample_facecolor", "green"
+            ),
+            "current_sample_edgecolor": colors_kwargs.get(
+                "current_sample_edgecolor", "k"
+            ),
+            "connection": colors_kwargs.get("connection", "k"),
+        }
 
-        return (cmap, color_dict)
-    
-    def set_colorbar(self, ax: matplotlib.axes, cmap: ListedColormap, bounds: list):
-        norm = BoundaryNorm(boundaries=bounds, ncolors=cmap.N)
-        sm =  plt.cm.ScalarMappable(cmap = cmap, norm=norm)
-        sm.set_array([])
-        print(bounds)
-        cbar = plt.colorbar(sm, ax=ax, ticks=bounds)
-        cbar.set_ticks(bounds[:-1] + 0.5)  # Center the ticks between the boundaries
-        cbar.set_ticklabels(bounds[:-1])   # Label each segment
-
-        return cbar
-        
     def plot_NG(
         self,
         data,
         neurons,
-        iter,
-        epoch,
-        current_sample= None,
-        sample_counts: np.ndarray = None,
-        connection_matrix: np.ndarray = None,
+        sample_counts=None,
+        current_sample=None,
+        connection_matrix=None,
+        epoch=None,
+        iter=None,
+        cmap=None,
     ):
-        self.ax.clear()
-        colors = self.color_dict
-        cmap = self.cmap
-        size = 50
+        if sample_counts is not None:
+            sc = self.ax.scatter(
+                data[:, 0], data[:, 1], c=sample_counts, cmap=cmap, label="Data"
+            )
+        else:
+            sc = self.ax.scatter(data[:, 0], data[:, 1], label="Data")
 
-        
-        sc = plt.scatter(
-            data[:, 0],
-            data[:, 1],
-            c=sample_counts,
-            cmap=cmap,
-            marker="o",
-            s=size / 3,
-            label="Data",
+        self.ax.scatter(
+            neurons[:, 0], neurons[:, 1], c=self.color_dict["neurons"], label="Neurons"
         )
-        plt.scatter(
-            neurons[:, 0], neurons[:, 1], c=colors["neurons"], marker=".", label="Neurons"
-        )
+
         if current_sample is not None:
-            plt.scatter(
+            self.ax.scatter(
                 current_sample[0],
                 current_sample[1],
-                facecolor=colors["current_sample_facecolor"],
-                edgecolors=colors["current_sample_edgecolor"],
-                marker="o",
-                s=size,
+                facecolor=self.color_dict["current_sample_facecolor"],
+                edgecolor=self.color_dict["current_sample_edgecolor"],
+                s=30,
                 label="Current sample",
             )
 
@@ -197,11 +185,23 @@ class AdaptiveVectorQuantizer(ABC):
                 neuron_2 = neurons[n2]
                 x_coords = [neuron_1[0], neuron_2[0]]
                 y_coords = [neuron_1[1], neuron_2[1]]
-                plt.plot(x_coords, y_coords, color=colors["connection"], linestyle="-")
+                self.ax.plot(
+                    x_coords,
+                    y_coords,
+                    color=self.color_dict["connection"],
+                    linestyle="-",
+                )
 
         plt.title(f"Epoch {epoch}\nIteration {iter}")
         plt.xlabel("X")
         plt.ylabel("Y")
         plt.legend()
 
-        plt.draw()
+    def create_cbar(self, cmap, norm):
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        tick_pos = [0.5, 1.5, 2.5, 3.5]
+        cbar = self.fig.colorbar(sm, ax=self.ax, ticks=tick_pos)
+        cbar.set_ticklabels(list(range(self.epochs + 1)))
+        cbar.set_label('Number of times sampled')
+        return cbar
