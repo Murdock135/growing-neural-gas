@@ -122,6 +122,7 @@ cython_debug/
 pylint-report.txt
 
 # Data
+results/
 *.csv
 *.dat
 *.db

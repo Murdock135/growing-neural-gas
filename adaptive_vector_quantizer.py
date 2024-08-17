@@ -157,15 +157,16 @@ class AdaptiveVectorQuantizer(ABC):
         iter=None,
         cmap=None,
     ):
+        cur_sample_size = 30
         if sample_counts is not None:
             sc = self.ax.scatter(
-                data[:, 0], data[:, 1], c=sample_counts, cmap=cmap, label="Data"
+                data[:, 0], data[:, 1], s=10, marker='o', c=sample_counts, cmap=cmap, label="Data"
             )
         else:
             sc = self.ax.scatter(data[:, 0], data[:, 1], label="Data")
 
         self.ax.scatter(
-            neurons[:, 0], neurons[:, 1], c=self.color_dict["neurons"], label="Neurons"
+            neurons[:, 0], neurons[:, 1], s=10, marker='o', c=self.color_dict["neurons"], label="Neurons"
         )
 
         if current_sample is not None:
