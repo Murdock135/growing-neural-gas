@@ -1,4 +1,3 @@
-from pickle import TUPLE
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, BoundaryNorm
 import numpy as np

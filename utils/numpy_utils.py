@@ -1,10 +1,5 @@
 import numpy as np
-import toml
-from data_io import SyntheticDataset
 from typing import Dict, Any
-import argparse
-from datetime import datetime
-import os
 
 
 def zero(a):
